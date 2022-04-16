@@ -85,6 +85,24 @@ export default class Main extends Component {
     return isValid;
   };
 
+  deleteProduct = () => {
+    let tempProductDetails = cloneDeep(this.state.productDetails);
+    let tempIndex = tempProductDetails.findIndex(
+      x => x.id === this.state.currentPressedItem.id,
+    );
+    tempProductDetails.splice(tempIndex, 1);
+
+    productReference
+      .child(this.state.currentPressedItem.id)
+      .set(null)
+      .then(() =>
+        this.setState({
+          productDetails: tempProductDetails,
+        }),
+      )
+      .catch(err => console.log(err));
+  };
+
   editProduct = () => {
     let postBody = {
       id: this.state.currentPressedItem.id,
@@ -108,6 +126,7 @@ export default class Main extends Component {
             title: '',
             price: '',
             offerPrice: '',
+            edit: false,
           }),
         )
         .catch(err => console.log(err));
@@ -337,6 +356,11 @@ export default class Main extends Component {
             </TouchableOpacity>
 
             <TouchableOpacity
+              onPress={() =>
+                this.setState({currentPressedItem: item}, () => {
+                  this.deleteProduct();
+                })
+              }
               style={{
                 height: 20,
                 width: 20,
