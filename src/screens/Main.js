@@ -9,10 +9,13 @@ import {
 import React, {Component} from 'react';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Icon from 'react-native-vector-icons/FontAwesome';
 import Modal from 'react-native-modal';
 import database, {firebase} from '@react-native-firebase/database';
+import {cloneDeep} from 'lodash';
 
 import {COLORS} from '../components/shared/colors';
+import {randomIdGenerator} from '../components/common/CommonFunction';
 
 const productReference = firebase
   .app()
@@ -82,8 +85,38 @@ export default class Main extends Component {
     return isValid;
   };
 
+  editProduct = () => {
+    let postBody = {
+      id: this.state.currentPressedItem.id,
+      name: this.state.title,
+      price: this.state.price.trim(),
+      offerPrice: this.state.offerPrice.trim(),
+    };
+
+    if (this.createValidation()) {
+      let tempProductDetails = cloneDeep(this.state.productDetails);
+      let tempIndex = tempProductDetails.findIndex(x => x.id === postBody.id);
+      tempProductDetails[tempIndex] = postBody;
+
+      productReference
+        .child(postBody.id)
+        .set(postBody)
+        .then(() =>
+          this.setState({
+            addOrEditModalOpen: false,
+            productDetails: tempProductDetails,
+            title: '',
+            price: '',
+            offerPrice: '',
+          }),
+        )
+        .catch(err => console.log(err));
+    }
+  };
+
   createProduct = () => {
     let postBody = {
+      id: randomIdGenerator(6) + Date.now().toString(),
       name: this.state.title,
       price: this.state.price.trim(),
       offerPrice: this.state.offerPrice.trim(),
@@ -91,7 +124,7 @@ export default class Main extends Component {
 
     if (this.createValidation()) {
       productReference
-        .child(this.state.productDetails.length.toString())
+        .child(postBody.id)
         .set(postBody)
         .then(() =>
           this.setState({
@@ -115,7 +148,13 @@ export default class Main extends Component {
         avoidKeyboard
         backdropColor={COLORS.black}
         onSwipeComplete={() =>
-          this.setState({addOrEditModalOpen: false, edit: false})
+          this.setState({
+            addOrEditModalOpen: false,
+            edit: false,
+            title: '',
+            price: '',
+            offerPrice: '',
+          })
         }
         swipeDirection="down"
         useNativeDriverForBackdrop
@@ -153,7 +192,7 @@ export default class Main extends Component {
               />
             </View>
             <TouchableOpacity
-              onPress={this.createProduct}
+              onPress={this.state.edit ? this.editProduct : this.createProduct}
               activeOpacity={0.5}
               style={styles.doneBtn}>
               <Text style={styles.doneText}>Done</Text>
@@ -229,44 +268,84 @@ export default class Main extends Component {
   renderProductItem = (item, index) => {
     return (
       <View style={{paddingHorizontal: 15, marginTop: 12}}>
-        <View style={{flexDirection: 'row'}}>
-          <Ionicons
-            name="phone-portrait-outline"
-            size={16}
-            color={COLORS.primary_green}
-          />
-          <View>
-            <Text
-              style={{
-                marginLeft: 6,
-                fontWeight: '700',
-                fontSize: 16,
-                color: COLORS.primary_green,
-              }}>
-              {item.name}
-            </Text>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+          <View style={{flexDirection: 'row'}}>
+            <Ionicons
+              name="phone-portrait-outline"
+              size={16}
+              color={COLORS.primary_green}
+            />
+            <View>
+              <Text
+                style={{
+                  marginLeft: 6,
+                  fontWeight: '700',
+                  fontSize: 16,
+                  color: COLORS.primary_green,
+                }}>
+                {item.name}
+              </Text>
 
-            <View style={{flexDirection: 'row'}}>
-              <Text
-                style={{
-                  marginLeft: 6,
-                  fontWeight: '500',
-                  fontSize: 12,
-                  color: COLORS.grey_400,
-                  textDecorationLine: 'line-through',
-                }}>
-                {'$' + item.price}
-              </Text>
-              <Text
-                style={{
-                  marginLeft: 6,
-                  fontWeight: '500',
-                  fontSize: 12,
-                  color: COLORS.grey_400,
-                }}>
-                {'$' + item.offerPrice}
-              </Text>
+              <View style={{flexDirection: 'row'}}>
+                <Text
+                  style={{
+                    marginLeft: 6,
+                    fontWeight: '500',
+                    fontSize: 12,
+                    color: COLORS.grey_400,
+                    textDecorationLine: 'line-through',
+                  }}>
+                  {'$' + item.price}
+                </Text>
+                <Text
+                  style={{
+                    marginLeft: 6,
+                    fontWeight: '500',
+                    fontSize: 12,
+                    color: COLORS.grey_400,
+                  }}>
+                  {'$' + item.offerPrice}
+                </Text>
+              </View>
             </View>
+          </View>
+
+          <View style={{flexDirection: 'row'}}>
+            <TouchableOpacity
+              onPress={() =>
+                this.setState({
+                  currentPressedItem: item,
+                  edit: true,
+                  title: item.name,
+                  price: item.price,
+                  offerPrice: item.offerPrice,
+                  addOrEditModalOpen: true,
+                })
+              }
+              style={{
+                height: 20,
+                width: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <Icon name="edit" size={16} color={COLORS.yellow} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                height: 20,
+                width: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: 10,
+              }}>
+              <Icon name="trash-o" size={16} color={COLORS.orange} />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -280,7 +359,7 @@ export default class Main extends Component {
 
         <FlatList
           data={this.state.productDetails}
-          keyExtractor={(item, index) => item?.name + index}
+          keyExtractor={item => item.id}
           renderItem={({item, index}) => this.renderProductItem(item, index)}
         />
 
@@ -321,7 +400,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   modalCard: {
-    height: '70%',
+    height: '60%',
     backgroundColor: COLORS.white,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
